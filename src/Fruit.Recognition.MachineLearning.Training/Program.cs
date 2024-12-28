@@ -73,7 +73,7 @@ namespace FruitIdentifier
                 }
             }
 
-            return imageList.ToArray();
+            return [.. imageList];
         }
     }
 }
