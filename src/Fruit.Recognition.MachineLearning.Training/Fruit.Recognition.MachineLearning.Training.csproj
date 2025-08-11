@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FruitRecognition.Core\FruitRecognition.Core.csproj" />
+    <ProjectReference Include="..\Fruit.Recognition.MachineLearning.Domain\Fruit.Recognition.MachineLearning.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
