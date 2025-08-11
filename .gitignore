@@ -65,8 +65,8 @@ checkpoint
 
 # Models and Data (uncomment to exclude)
 # models/
-# data/
 # datasets/
+data/
 
 # Machine Learning artifacts
 *.model

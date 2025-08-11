@@ -8,11 +8,14 @@ public class ModelConfiguration
     public int? Seed { get; set; } = 42;
     public int? ProcessorCount { get; set; }
     public int Epochs { get; set; } = 200;
-    public int BatchSize { get; set; } = 10;
-    public float LearningRate { get; set; } = 0.01f;
+    public int BatchSize { get; set; } = 32;
+    public float LearningRate { get; set; } = 0.001f;
     public string Architecture { get; set; } = "ResNetV2101";
     public bool UseTransferLearning { get; set; } = true;
     public double ValidationFraction { get; set; } = 0.1;
+    public bool UseGpu { get; set; } = true;
+    public int DeviceId { get; set; } = 0;
+    public bool FallbackToCpu { get; set; } = false;
 }
 
 public class PathConfiguration

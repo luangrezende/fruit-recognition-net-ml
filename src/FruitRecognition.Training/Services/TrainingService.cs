@@ -25,7 +25,7 @@ public class TrainingService
 
     public async Task RunAsync(string[] args)
     {
-        _logger.LogInformation("Starting Fruit Recognition Model Training");
+        _logger.LogInformation("Starting fruit recognition training...");
 
         try
         {
@@ -35,29 +35,28 @@ public class TrainingService
             datasetPath = ConvertToAbsolutePath(datasetPath);
             modelPath = ConvertToAbsolutePath(modelPath);
 
-            _logger.LogInformation("Dataset Path: {DatasetPath}", datasetPath);
-            _logger.LogInformation("Model Output Path: {ModelPath}", modelPath);
+            _logger.LogInformation("Using dataset: {DatasetPath}", datasetPath);
+            _logger.LogInformation("Output model: {ModelPath}", modelPath);
 
-            var validationResult = await _dataLoader.ValidateDatasetAsync(datasetPath);
+            // Validate dataset first
+            var validation = await _dataLoader.ValidateDatasetAsync(datasetPath);
             
-            if (!validationResult.IsValid)
+            if (!validation.IsValid)
             {
                 _logger.LogError("Dataset validation failed:");
-                foreach (var error in validationResult.Errors)
-                    _logger.LogError("  - {Error}", error);
+                validation.Errors.ForEach(error => _logger.LogError("  {Error}", error));
                 return;
             }
 
-            if (validationResult.Warnings.Any())
-            {
-                foreach (var warning in validationResult.Warnings)
-                    _logger.LogWarning("  - {Warning}", warning);
-            }
+            if (validation.Warnings.Any())
+                validation.Warnings.ForEach(warning => _logger.LogWarning("  {Warning}", warning));
 
-            _logger.LogInformation("Dataset validation successful: {TotalImages} images, {ClassCount} classes", validationResult.TotalImages, validationResult.ClassCounts.Count);
+            _logger.LogInformation("Found {TotalImages} images across {ClassCount} classes", 
+                validation.TotalImages, validation.ClassCounts.Count);
             
-            foreach (var classCount in validationResult.ClassCounts.OrderByDescending(x => x.Value))
-                _logger.LogInformation("    {Class}: {Count} images", classCount.Key, classCount.Value);
+            // Show class distribution
+            foreach (var (className, count) in validation.ClassCounts.OrderByDescending(x => x.Value))
+                _logger.LogInformation("  {Class}: {Count} images", className, count);
 
             var trainingData = await _dataLoader.LoadImagesFromDirectoryAsync(datasetPath);
 
@@ -67,27 +66,24 @@ public class TrainingService
                 return;
             }
 
+            _logger.LogInformation("Training ResNetV2101 model (GPU: {UseGpu}, Fallback: {Fallback})...", 
+                _modelConfig.UseGpu, _modelConfig.FallbackToCpu);
             var (model, metrics) = await _modelTrainer.TrainModelAsync(trainingData, _modelConfig);
 
-            _logger.LogInformation("Training completed successfully!");
-            _logger.LogInformation("Training Time: {TrainingTime:F2} seconds", metrics.TrainingTimeSeconds);
-            _logger.LogInformation("Training Samples: {TrainingSamples}", metrics.TrainingSampleCount);
-            _logger.LogInformation("Model Performance Metrics:");
-            _logger.LogInformation("  Micro Accuracy: {MicroAccuracy:P2}", metrics.MicroAccuracy);
-            _logger.LogInformation("  Macro Accuracy: {MacroAccuracy:P2}", metrics.MacroAccuracy);
-            _logger.LogInformation("  Log Loss: {LogLoss:F4}", metrics.LogLoss);
+            _logger.LogInformation("Training completed! Time: {TrainingTime:F1}s", metrics.TrainingTimeSeconds);
+            _logger.LogInformation("Results: Accuracy {MicroAccuracy:P1}, Loss {LogLoss:F3}", 
+                metrics.MicroAccuracy, metrics.LogLoss);
 
+            // Save the model
             var mlContext = new Microsoft.ML.MLContext();
             var schema = mlContext.Data.LoadFromEnumerable<FruitImageData>(new List<FruitImageData>()).Schema;
             
             await _modelTrainer.SaveModelAsync(model, modelPath, schema);
-            
-            _logger.LogInformation("Model saved successfully to: {ModelPath}", modelPath);
-            _logger.LogInformation("Training completed successfully!");
+            _logger.LogInformation("Model saved to: {ModelPath}", modelPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Training failed with error: {Message}", ex.Message);
+            _logger.LogError(ex, "Training failed: {Message}", ex.Message);
             throw;
         }
     }

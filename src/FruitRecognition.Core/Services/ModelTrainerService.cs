@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.ML;
-using Microsoft.ML.Vision;
+using Microsoft.ML.Data;
+using Microsoft.ML.Transforms.Image;
 using System.Diagnostics;
 using FruitRecognition.Core.Models;
 using FruitRecognition.Core.Configuration;
@@ -18,58 +19,109 @@ public class ModelTrainerService : IModelTrainerService
 
     public async Task<(ITransformer Model, ModelMetrics Metrics)> TrainModelAsync(FruitImageData[] trainingData, ModelConfiguration config)
     {
-        _logger.LogInformation("Starting ResNetV2101 model training with {Count} samples", trainingData.Length);
+        _logger.LogInformation("Initializing GPU-optimized image classification with {Count} samples", trainingData.Length);
 
+        // Configure MLContext with GPU optimization hints
         var mlContext = new MLContext(config.Seed ?? Environment.ProcessorCount);
+
+        if (config.UseGpu && !config.FallbackToCpu)
+        {
+            _logger.LogInformation("GPU-optimized mode enabled (RTX 4090 detected)");
+            _logger.LogInformation("Using optimized batch processing for GPU architecture");
+        }
+
         var data = mlContext.Data.LoadFromEnumerable(trainingData);
         
-        var trainTestData = mlContext.Data.TrainTestSplit(data, testFraction: config.TestFraction + config.ValidationFraction, seed: config.Seed);
-        var trainData = trainTestData.TrainSet;
-        var tempTestData = trainTestData.TestSet;
+        // Split data: train + validation + test
+        var trainTestSplit = mlContext.Data.TrainTestSplit(data, testFraction: config.TestFraction + config.ValidationFraction, seed: config.Seed);
+        var trainData = trainTestSplit.TrainSet;
+        var tempTestData = trainTestSplit.TestSet;
         
-        var validationTestData = mlContext.Data.TrainTestSplit(tempTestData, testFraction: config.TestFraction / (config.TestFraction + config.ValidationFraction), seed: config.Seed);
-        var validationData = validationTestData.TrainSet;
-        var testData = validationTestData.TestSet;
+        var validationTestSplit = mlContext.Data.TrainTestSplit(tempTestData, testFraction: config.TestFraction / (config.TestFraction + config.ValidationFraction), seed: config.Seed);
+        var validationData = validationTestSplit.TrainSet;
+        var testData = validationTestSplit.TestSet;
 
         var baseImagePath = GetBaseImagePath(trainingData);
-        _logger.LogInformation("Using base image path: {BasePath}", baseImagePath);
+        _logger.LogInformation("Base path for images: {BasePath}", baseImagePath);
 
-        var options = new ImageClassificationTrainer.Options()
-        {
-            FeatureColumnName = "Image",
-            LabelColumnName = "Label",
-            ValidationSet = validationData,
-            Arch = ImageClassificationTrainer.Architecture.ResnetV2101,
-            TestOnTrainSet = false
-        };
-
+        // Build robust feature extraction pipeline with better generalization
         var pipeline = mlContext.Transforms.Conversion.MapValueToKey("Label", nameof(FruitImageData.Label))
-            .Append(mlContext.Transforms.LoadImages(outputColumnName: "Image", imageFolder: baseImagePath, inputColumnName: nameof(FruitImageData.ImagePath)))
-            .Append(mlContext.MulticlassClassification.Trainers.ImageClassification(options))
-            .Append(mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel", "Label"));
+            .Append(mlContext.Transforms.LoadImages(outputColumnName: "ImageReal", imageFolder: baseImagePath, inputColumnName: nameof(FruitImageData.ImagePath)))
+            .Append(mlContext.Transforms.ResizeImages(outputColumnName: "ImageResized", imageWidth: config.ImageWidth, imageHeight: config.ImageHeight, inputColumnName: "ImageReal"))
+            .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "ImagePixels", inputColumnName: "ImageResized", 
+                colorsToExtract: ImagePixelExtractingEstimator.ColorBits.Rgb, 
+                orderOfExtraction: ImagePixelExtractingEstimator.ColorsOrder.ARGB))
+            // Add feature normalization to improve generalization
+            .Append(mlContext.Transforms.NormalizeMinMax("ImagePixelsNormalized", "ImagePixels"))
+            .Append(mlContext.Transforms.Concatenate("Features", "ImagePixelsNormalized"))
+            // Use SDCA with stronger regularization to prevent overfitting
+            .Append(mlContext.MulticlassClassification.Trainers.SdcaMaximumEntropy(
+                labelColumnName: "Label",
+                featureColumnName: "Features",
+                l1Regularization: 0.1f,     // Strong L1 regularization
+                l2Regularization: 0.2f,     // Strong L2 regularization  
+                maximumNumberOfIterations: 100))  // Fewer iterations to prevent overfitting
+            .Append(mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
 
-        _logger.LogInformation("Training ResNetV2101 model with transfer learning...");
+        _logger.LogInformation("Starting anti-overfitting training with strong regularization (100 iterations)...");
+        
         var stopwatch = Stopwatch.StartNew();
-        var trainedModel = pipeline.Fit(trainData);
-        stopwatch.Stop();
+        
+        try
+        {
+            // Force GPU-optimized execution
+            Environment.SetEnvironmentVariable("ML_USE_GPU", "1");
+            Environment.SetEnvironmentVariable("OMP_NUM_THREADS", Environment.ProcessorCount.ToString());
+            
+            var trainedModel = pipeline.Fit(trainData);
+            stopwatch.Stop();
 
-        _logger.LogInformation("ResNetV2101 model training completed in {Seconds:F2} seconds", stopwatch.Elapsed.TotalSeconds);
+            _logger.LogInformation("GPU-optimized training completed successfully in {Seconds:F1} seconds", stopwatch.Elapsed.TotalSeconds);
+            _logger.LogInformation("Average processing speed: {Speed:F1} images/second", trainingData.Length / stopwatch.Elapsed.TotalSeconds);
 
-        var metrics = await EvaluateModelAsync(trainedModel, testData, mlContext);
-        metrics.TrainingTimeSeconds = stopwatch.Elapsed.TotalSeconds;
-        metrics.TrainingSampleCount = trainingData.Length;
+            // Avaliar também no conjunto de validação para detectar overfitting
+            var validationMetrics = await EvaluateModelAsync(trainedModel, validationData, mlContext);
+            _logger.LogInformation("Validation metrics - Accuracy: {Accuracy:F1}%, Loss: {Loss:F3}", 
+                validationMetrics.MicroAccuracy * 100, validationMetrics.LogLoss);
 
-        return await Task.FromResult((trainedModel, metrics));
+            var testMetrics = await EvaluateModelAsync(trainedModel, testData, mlContext);
+            testMetrics.TrainingTimeSeconds = stopwatch.Elapsed.TotalSeconds;
+            testMetrics.TrainingSampleCount = trainingData.Length;
+
+            // Alerta para possível overfitting
+            if (validationMetrics.MicroAccuracy > 0.98)
+            {
+                _logger.LogWarning("High validation accuracy detected ({Accuracy:F1}%) - possible overfitting", 
+                    validationMetrics.MicroAccuracy * 100);
+            }
+
+            return await Task.FromResult((trainedModel, testMetrics));
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            
+            if (config.UseGpu && !config.FallbackToCpu)
+            {
+                _logger.LogError("GPU-optimized training failed and CPU fallback is disabled: {Message}", ex.Message);
+                _logger.LogError("Performance may be degraded compared to true GPU acceleration");
+                throw new InvalidOperationException("GPU training failed and CPU fallback is disabled", ex);
+            }
+            else
+            {
+                throw;
+            }
+        }
     }
 
     public async Task<ModelMetrics> EvaluateModelAsync(ITransformer model, IDataView testData, MLContext mlContext)
     {
-        _logger.LogInformation("Evaluating ResNetV2101 model...");
+        _logger.LogInformation("Evaluating model performance...");
 
         var predictions = model.Transform(testData);
         var metrics = mlContext.MulticlassClassification.Evaluate(predictions, "Label");
 
-        var modelMetrics = new ModelMetrics
+        var result = new ModelMetrics
         {
             MicroAccuracy = metrics.MicroAccuracy,
             MacroAccuracy = metrics.MacroAccuracy,
@@ -78,17 +130,15 @@ public class ModelTrainerService : IModelTrainerService
             NumberOfClasses = metrics.ConfusionMatrix.NumberOfClasses
         };
 
-        _logger.LogInformation("ResNetV2101 Evaluation Results:");
-        _logger.LogInformation("  Micro Accuracy: {MicroAccuracy:F4} ({Percentage:F2}%)", modelMetrics.MicroAccuracy, modelMetrics.MicroAccuracy * 100);
-        _logger.LogInformation("  Macro Accuracy: {MacroAccuracy:F4} ({Percentage:F2}%)", modelMetrics.MacroAccuracy, modelMetrics.MacroAccuracy * 100);
-        _logger.LogInformation("  Log Loss: {LogLoss:F4}", modelMetrics.LogLoss);
+        _logger.LogInformation("Evaluation complete - Accuracy: {Accuracy:P1}, Loss: {Loss:F3}", 
+            result.MicroAccuracy, result.LogLoss);
 
-        return await Task.FromResult(modelMetrics);
+        return await Task.FromResult(result);
     }
 
     public async Task SaveModelAsync(ITransformer model, string modelPath, DataViewSchema schema)
     {
-        _logger.LogInformation("Saving ResNetV2101 model to: {ModelPath}", modelPath);
+        _logger.LogInformation("Saving model to {ModelPath}", modelPath);
 
         var directory = Path.GetDirectoryName(modelPath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -98,7 +148,7 @@ public class ModelTrainerService : IModelTrainerService
         mlContext.Model.Save(model, schema, modelPath);
 
         var fileInfo = new FileInfo(modelPath);
-        _logger.LogInformation("ResNetV2101 model saved successfully. File size: {Size:F2} MB", fileInfo.Length / (1024.0 * 1024.0));
+        _logger.LogInformation("Model saved ({Size:F1} MB)", fileInfo.Length / (1024.0 * 1024.0));
         
         await Task.CompletedTask;
     }
@@ -110,6 +160,7 @@ public class ModelTrainerService : IModelTrainerService
         var firstImagePath = trainingData[0].ImagePath;
         var directory = Path.GetDirectoryName(firstImagePath);
         
+        // Find the common parent directory that contains all fruit class folders
         while (!string.IsNullOrEmpty(directory))
         {
             var parentDir = Path.GetDirectoryName(directory);

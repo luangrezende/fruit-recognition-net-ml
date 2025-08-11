@@ -43,7 +43,9 @@ public class PredictionApplicationService
             }
             else
             {
-                await RunInteractiveModeAsync(predictionEngine);
+                // Run batch mode automatically for all images in identification folder
+                _logger.LogInformation("Processing all images in identification folder...");
+                await RunBatchModeAsync(predictionEngine);
             }
         }
         catch (Exception ex)
@@ -61,19 +63,20 @@ public class PredictionApplicationService
 
         var prediction = await _predictionService.PredictAsync(imagePath, predictionEngine);
         
-        _logger.LogInformation("Predicted Fruit: {PredictedLabel}", prediction.PredictedLabel);
-        _logger.LogInformation("Confidence: {Confidence:F2}%", prediction.Confidence);
+        _logger.LogInformation("Result: {PredictedLabel} (confidence: {Confidence:F1}%)", 
+            prediction.PredictedLabel, prediction.Confidence);
         
+        // Show top predictions if we have multiple classes
         if (prediction.Score?.Length > 1)
         {
-            var sortedScores = prediction.Score
+            var topScores = prediction.Score
                 .Select((score, index) => new { Index = index, Score = score })
                 .OrderByDescending(x => x.Score)
-                .Take(5);
+                .Take(3); // Show top 3 instead of 5
 
-            foreach (var item in sortedScores)
+            foreach (var item in topScores)
             {
-                _logger.LogInformation("Class {Index}: {Score:P2}", item.Index, item.Score);
+                _logger.LogInformation("  Class {Index}: {Score:P1}", item.Index, item.Score);
             }
         }
     }
@@ -114,11 +117,12 @@ public class PredictionApplicationService
     private async Task RunBatchModeAsync(
         PredictionEngine<FruitImageData, FruitPrediction> predictionEngine)
     {
-        var testImagesPath = _pathConfig.TestImagesPath ?? Path.Combine(Directory.GetCurrentDirectory(), "TestImages");
+        var testImagesPath = ConvertToAbsolutePath(_pathConfig.TestImagesPath ?? Path.Combine(Directory.GetCurrentDirectory(), "data", "identification"));
 
         if (!Directory.Exists(testImagesPath))
         {
-            _logger.LogWarning("Test images directory not found: {TestImagesPath}", testImagesPath);
+            _logger.LogWarning("Identification images directory not found: {TestImagesPath}", testImagesPath);
+            _logger.LogInformation("Please add images to the identification folder to process them.");
             return;
         }
 

@@ -15,16 +15,16 @@ public class PredictionService : IPredictionService
 
     public async Task<(ITransformer Model, DataViewSchema Schema)> LoadModelAsync(string modelPath)
     {
-        _logger.LogInformation("Loading model from: {ModelPath}", modelPath);
+        _logger.LogInformation("Loading model from {ModelPath}", modelPath);
 
         if (!File.Exists(modelPath))
             throw new FileNotFoundException($"Model file not found: {modelPath}");
 
         var mlContext = new MLContext();
-        var loadedModel = mlContext.Model.Load(modelPath, out var inputSchema);
+        var model = mlContext.Model.Load(modelPath, out var schema);
 
         _logger.LogInformation("Model loaded successfully");
-        return await Task.FromResult((loadedModel, inputSchema));
+        return await Task.FromResult((model, schema));
     }
 
     public PredictionEngine<FruitImageData, FruitPrediction> CreatePredictionEngine(ITransformer model, MLContext mlContext)

@@ -12,17 +12,19 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var configuration = new ConfigurationBuilder()
+        var config = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false)
             .AddCommandLine(args)
             .Build();
 
-        var host = Host.CreateDefaultBuilder(args)
-            .ConfigureServices((context, services) =>
+        using var host = Host.CreateDefaultBuilder(args)
+            .ConfigureServices(services =>
             {
-                services.Configure<ModelConfiguration>(configuration.GetSection(nameof(ModelConfiguration)));
-                services.Configure<PathConfiguration>(configuration.GetSection(nameof(PathConfiguration)));
+                services.Configure<ModelConfiguration>(config.GetSection(nameof(ModelConfiguration)));
+                services.Configure<PathConfiguration>(config.GetSection(nameof(PathConfiguration)));
+                
+                // Register our services
                 services.AddSingleton<IDataLoaderService, DataLoaderService>();
                 services.AddSingleton<IModelTrainerService, ModelTrainerService>();
                 services.AddSingleton<TrainingService>();
@@ -43,12 +45,8 @@ class Program
         catch (Exception ex)
         {
             var logger = host.Services.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "An error occurred during training");
+            logger.LogError(ex, "Training failed: {Message}", ex.Message);
             Environment.ExitCode = 1;
-        }
-        finally
-        {
-            await host.StopAsync();
         }
     }
 }
