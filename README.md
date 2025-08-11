@@ -1,5 +1,11 @@
 # 🍎 Fruit Recognition - ResNetV2101 ML.NET
 
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/)
+[![ML.NET](https://img.shields.io/badge/ML.NET-4.0-FF6F00?style=for-the-badge&logo=microsoft)](https://dotnet.microsoft.com/apps/machinelearning-ai/ml-dotnet)
+[![ResNet](https://img.shields.io/badge/ResNetV2-101-00D4AA?style=for-the-badge&logo=tensorflow)](https://arxiv.org/abs/1603.05027)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Build](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=github-actions)](.)
+
 A fruit recognition system using **ResNetV2101** and **ML.NET** with transfer learning for high accuracy image classification.
 
 ## 🚀 Features
