@@ -2,10 +2,9 @@
 
 # 🍎 Fruit Recognition ML
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/luangrezende/fruit-recognition-net-ml/ci-cd.yml?style=for-the-badge&logo=github)](https://github.com/luangrezende/fruit-recognition-net-ml/actions)
-[![Release](https://img.shields.io/github/v/release/luangrezende/fruit-recognition-net-ml?style=for-the-badge&logo=github&color=green)](https://github.com/luangrezende/fruit-recognition-net-ml/releases)
-[![Downloads](https://img.shields.io/github/downloads/luangrezende/fruit-recognition-net-ml/total?style=for-the-badge&logo=github&color=brightgreen)](https://github.com/luangrezende/fruit-recognition-net-ml/releases)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/luangrezende/fruit-recognition-net-ml/ci-cd.yml?style=for-the-badge&logo=github&cacheSeconds=300)](https://github.com/luangrezende/fruit-recognition-net-ml/actions)
+[![Release](https://img.shields.io/github/v/release/luangrezende/fruit-recognition-net-ml?style=for-the-badge&logo=github&color=green&cacheSeconds=300)](https://github.com/luangrezende/fruit-recognition-net-ml/releases)
+[![Downloads](https://img.shields.io/github/downloads/luangrezende/fruit-recognition-net-ml/total?style=for-the-badge&logo=github&color=brightgreen&cacheSeconds=300)](https://github.com/luangrezende/fruit-recognition-net-ml/releases)
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/download/dotnet/8.0)
 [![ML.NET](https://img.shields.io/badge/ML.NET-4.0-FF6F00?style=for-the-badge&logo=microsoft)](https://dotnet.microsoft.com/apps/machinelearning-ai/ml-dotnet)
@@ -64,7 +63,7 @@
 ### Option 1: Pre-built Releases
 ```bash
 # 1. Download from releases
-curl -L https://github.com/luangrezende/fruit-recognition-net-ml/releases/latest
+curl -L https://github.com/luangrezende/fruit-recognition-net-ml/releases/download/v1.0.0/fruit-recognition-training-win-x64.zip
 
 # 2. Extract and run
 ./fruit-recognition-training    # Train your model
