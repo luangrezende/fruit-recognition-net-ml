@@ -11,6 +11,10 @@ on:
 env:
   DOTNET_VERSION: '8.0.x'
   BUILD_CONFIGURATION: 'Release'
+
+permissions:
+  contents: write
+  actions: read
   
 jobs:
   build-and-test:
