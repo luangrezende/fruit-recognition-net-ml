@@ -107,3 +107,30 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# ML.NET specific files
+*.zip
+*.pb
+*.onnx
+*.mlnet
+
+# Training data and models (keep structure but ignore content)
+models/*.zip
+data/training/*/*.*
+data/test/*.*
+!data/training/.gitkeep
+!data/test/.gitkeep
+
+# Image files
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.gif
+*.tiff
+*.tif
+*.webp
+
+# Custom directories
+temp/
+cache/

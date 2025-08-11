@@ -1,0 +1,168 @@
+name: Release Fruit Recognition ML
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  BUILD_CONFIGURATION: 'Release'
+
+jobs:
+  create-release:
+    name: Create Release Package
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Get Version
+      id: version
+      shell: pwsh
+      run: |
+        if ("${{ github.event.inputs.version }}" -ne "") {
+          $version = "${{ github.event.inputs.version }}"
+        } else {
+          $version = $env:GITHUB_REF -replace 'refs/tags/', ''
+        }
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "Version: $version"
+        
+    - name: Restore Dependencies
+      shell: pwsh
+      run: |
+        cd src
+        dotnet restore Fruit.Recognition.MachineLearning.sln --verbosity minimal
+        
+    - name: Build Solution
+      shell: pwsh
+      run: |
+        cd src
+        dotnet build Fruit.Recognition.MachineLearning.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore --verbosity minimal
+        
+    - name: Publish Windows Builds
+      shell: pwsh
+      run: |
+        $projects = @("Training", "Testing")
+        foreach ($project in $projects) {
+          Write-Host "Publishing $project for Windows..."
+          cd src
+          dotnet publish "Fruit.Recognition.MachineLearning.$project/Fruit.Recognition.MachineLearning.$project.csproj" `
+            --configuration ${{ env.BUILD_CONFIGURATION }} `
+            --runtime win-x64 `
+            --self-contained true `
+            --output "../release/win-x64/$project" `
+            --verbosity minimal
+          cd ..
+        }
+        
+    - name: Publish Linux Builds
+      shell: pwsh
+      run: |
+        $projects = @("Training", "Testing")
+        foreach ($project in $projects) {
+          Write-Host "Publishing $project for Linux..."
+          cd src
+          dotnet publish "Fruit.Recognition.MachineLearning.$project/Fruit.Recognition.MachineLearning.$project.csproj" `
+            --configuration ${{ env.BUILD_CONFIGURATION }} `
+            --runtime linux-x64 `
+            --self-contained true `
+            --output "../release/linux-x64/$project" `
+            --verbosity minimal
+          cd ..
+        }
+        
+    - name: Create Release Packages
+      shell: pwsh
+      run: |
+        # Create Windows packages
+        Compress-Archive -Path "release/win-x64/Training/*" -DestinationPath "fruit-recognition-training-win-x64.zip"
+        Compress-Archive -Path "release/win-x64/Testing/*" -DestinationPath "fruit-recognition-testing-win-x64.zip"
+        
+        # Create Linux packages  
+        tar -czf fruit-recognition-training-linux-x64.tar.gz -C release/linux-x64/Training .
+        tar -czf fruit-recognition-testing-linux-x64.tar.gz -C release/linux-x64/Testing .
+        
+    - name: Generate Release Notes
+      shell: pwsh
+      run: |
+        $releaseNotes = @"
+        # Fruit Recognition ML ${{ steps.version.outputs.VERSION }}
+        
+        Cross-platform machine learning system for fruit classification.
+        
+        ## Downloads
+        
+        ### Windows (x64)
+        - Training Application: ``fruit-recognition-training-win-x64.zip``
+        - Testing Application: ``fruit-recognition-testing-win-x64.zip``
+        
+        ### Linux (x64)  
+        - Training Application: ``fruit-recognition-training-linux-x64.tar.gz``
+        - Testing Application: ``fruit-recognition-testing-linux-x64.tar.gz``
+        
+        ## Installation
+        
+        1. Download the appropriate package for your platform
+        2. Extract to a directory of your choice
+        3. No additional dependencies required (self-contained)
+        
+        ## Usage
+        
+        ### Training
+        1. Place training images in organized folders by fruit type
+        2. Run the Training application
+        3. A model file will be generated
+        
+        ### Testing
+        1. Ensure you have a trained model
+        2. Place test images in the configured directory
+        3. Run the Testing application for predictions
+        
+        ## System Requirements
+        
+        - Windows 10/11 (x64) or Linux (x64)
+        - 4GB RAM minimum, 8GB recommended
+        - 1GB free disk space
+        - NVIDIA GPU with CUDA 12.x (optional, for GPU training)
+        
+        ## Technical Details
+        
+        - Built with .NET 8.0 and ML.NET 4.0
+        - Uses SDCA algorithm with regularization
+        - GPU acceleration support for training
+        - Cross-platform compatibility
+        "@
+        
+        $releaseNotes | Out-File -FilePath "RELEASE_NOTES.md" -Encoding UTF8
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: Fruit Recognition ML ${{ steps.version.outputs.VERSION }}
+        body_path: RELEASE_NOTES.md
+        files: |
+          fruit-recognition-training-win-x64.zip
+          fruit-recognition-testing-win-x64.zip
+          fruit-recognition-training-linux-x64.tar.gz  
+          fruit-recognition-testing-linux-x64.tar.gz
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

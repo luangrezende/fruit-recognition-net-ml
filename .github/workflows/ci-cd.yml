@@ -1,0 +1,214 @@
+name: Fruit Recognition ML - CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  BUILD_CONFIGURATION: 'Release'
+  
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore Dependencies
+      run: |
+        cd src
+        dotnet restore Fruit.Recognition.MachineLearning.sln
+        
+    - name: Build Solution
+      run: |
+        cd src
+        dotnet build Fruit.Recognition.MachineLearning.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+        
+    - name: Run Tests
+      run: |
+        cd src
+        echo "No tests configured yet"
+        
+  package-applications:
+    name: Package Applications
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    strategy:
+      matrix:
+        project:
+          - name: "Training"
+            path: "Fruit.Recognition.MachineLearning.Training"
+          - name: "Testing" 
+            path: "Fruit.Recognition.MachineLearning.Testing"
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore Dependencies
+      run: |
+        cd src
+        dotnet restore Fruit.Recognition.MachineLearning.sln
+        
+    - name: Publish Application
+      run: |
+        cd src
+        dotnet publish ${{ matrix.project.path }}/${{ matrix.project.path }}.csproj \
+          --configuration ${{ env.BUILD_CONFIGURATION }} \
+          --runtime win-x64 \
+          --self-contained true \
+          --output ../releases/win-x64/${{ matrix.project.name }}
+          
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.project.name }}-win-x64
+        path: releases/win-x64/${{ matrix.project.name }}/
+        retention-days: 30
+
+  cross-platform-build:
+    name: Cross Platform Build
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    strategy:
+      matrix:
+        runtime: [win-x64, linux-x64, osx-x64]
+        project: [Training, Testing]
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Build for Platform
+      run: |
+        cd src
+        dotnet publish Fruit.Recognition.MachineLearning.${{ matrix.project }}/Fruit.Recognition.MachineLearning.${{ matrix.project }}.csproj \
+          --configuration ${{ env.BUILD_CONFIGURATION }} \
+          --runtime ${{ matrix.runtime }} \
+          --self-contained true \
+          --output ../releases/${{ matrix.runtime }}/${{ matrix.project }}
+          
+    - name: Package Release
+      run: |
+        cd releases/${{ matrix.runtime }}
+        if [[ "${{ matrix.runtime }}" == "win-x64" ]]; then
+          zip -r fruit-recognition-${{ matrix.project }}-${{ matrix.runtime }}.zip ${{ matrix.project }}/
+        else
+          tar -czf fruit-recognition-${{ matrix.project }}-${{ matrix.runtime }}.tar.gz ${{ matrix.project }}/
+        fi
+        
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: fruit-recognition-${{ matrix.project }}-${{ matrix.runtime }}
+        path: releases/${{ matrix.runtime }}/fruit-recognition-${{ matrix.project }}-${{ matrix.runtime }}.*
+        retention-days: 30
+
+  create-release:
+    name: Create GitHub Release
+    needs: [package-applications, cross-platform-build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Download All Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+        
+    - name: List Release Files
+      run: |
+        find artifacts/ -type f -name "*.zip" -o -name "*.tar.gz"
+        
+    - name: Upload Release Assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/**/*.zip
+          artifacts/**/*.tar.gz
+        body: |
+          ## Fruit Recognition ML Release
+          
+          This release contains cross-platform builds of the Fruit Recognition ML system.
+          
+          ### Available Downloads
+          - Windows (win-x64): .zip files
+          - Linux (linux-x64): .tar.gz files  
+          - macOS (osx-x64): .tar.gz files
+          
+          ### Quick Start
+          1. Download the appropriate package for your OS
+          2. Extract the files
+          3. Run the Training application to train your model
+          4. Run the Testing application to make predictions
+          
+          ### System Requirements
+          - No additional dependencies required (self-contained)
+          - Windows 10/11, Linux, or macOS
+          - 4GB+ RAM recommended
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-documentation:
+    name: Update Documentation
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Generate Build Report
+      run: |
+        cat > BUILD_REPORT.md << 'EOF'
+        # Build Report
+        
+        **Build Date:** $(date)
+        **Branch:** ${{ github.ref_name }}
+        **Commit:** ${{ github.sha }}
+        **Configuration:** ${{ env.BUILD_CONFIGURATION }}
+        
+        ## Components Built
+        - Training Application - GPU-optimized ML training
+        - Testing Application - Real-time fruit recognition
+        - Core Domain Library - Shared ML models and services
+        
+        ## Build Status
+        All components built successfully with .NET ${{ env.DOTNET_VERSION }}
+        
+        EOF
+        
+    - name: Commit Documentation
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add BUILD_REPORT.md || echo "No changes to commit"
+        git commit -m "Update build documentation [skip ci]" || echo "No changes to commit"
+        git push || echo "No changes to push"
