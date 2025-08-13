@@ -94,11 +94,39 @@ jobs:
     - name: Create Release Packages
       shell: pwsh
       run: |
-        # Create Windows packages
-        Compress-Archive -Path "release/win-x64/Training/*" -DestinationPath "fruit-recognition-training-win-x64.zip"
-        Compress-Archive -Path "release/win-x64/Testing/*" -DestinationPath "fruit-recognition-testing-win-x64.zip"
+        # Create organized release structure
+        $releaseDir = "fruit-recognition-complete"
+        New-Item -ItemType Directory -Path $releaseDir -Force
         
-        # Create Linux packages  
+        # Windows Complete Package
+        $winDir = "$releaseDir/windows"
+        New-Item -ItemType Directory -Path $winDir -Force
+        
+        # Copy Windows executables
+        Copy-Item "release/win-x64/Training/*" -Destination $winDir -Recurse
+        Copy-Item "release/win-x64/Testing/*" -Destination $winDir -Recurse
+        
+        # Copy template structure to Windows
+        Copy-Item "release-assets/*" -Destination $winDir -Recurse
+        
+        # Linux Complete Package  
+        $linuxDir = "$releaseDir/linux"
+        New-Item -ItemType Directory -Path $linuxDir -Force
+        
+        # Copy Linux executables
+        Copy-Item "release/linux-x64/Training/*" -Destination $linuxDir -Recurse
+        Copy-Item "release/linux-x64/Testing/*" -Destination $linuxDir -Recurse
+        
+        # Copy template structure to Linux
+        Copy-Item "release-assets/*" -Destination $linuxDir -Recurse
+        
+        # Create final packages
+        Compress-Archive -Path "$releaseDir/windows/*" -DestinationPath "fruit-recognition-windows-complete.zip" -Force
+        tar -czf fruit-recognition-linux-complete.tar.gz -C "$releaseDir/linux" .
+        
+        # Also create individual packages for backward compatibility
+        Compress-Archive -Path "release/win-x64/Training/*" -DestinationPath "fruit-recognition-training-win-x64.zip" -Force
+        Compress-Archive -Path "release/win-x64/Testing/*" -DestinationPath "fruit-recognition-testing-win-x64.zip" -Force
         tar -czf fruit-recognition-training-linux-x64.tar.gz -C release/linux-x64/Training .
         tar -czf fruit-recognition-testing-linux-x64.tar.gz -C release/linux-x64/Testing .
         
@@ -112,24 +140,43 @@ jobs:
         
         ## Downloads
         
-        ### Windows (x64)
-        - Training Application: ``fruit-recognition-training-win-x64.zip``
-        - Testing Application: ``fruit-recognition-testing-win-x64.zip``
+        ### 🚀 Complete Packages (Recommended)
         
-        ### Linux (x64)  
-        - Training Application: ``fruit-recognition-training-linux-x64.tar.gz``
-        - Testing Application: ``fruit-recognition-testing-linux-x64.tar.gz``
+        **Windows Complete**
+        - ``fruit-recognition-windows-complete.zip`` - *Everything included, just extract and use!*
+        
+        **Linux Complete**
+        - ``fruit-recognition-linux-complete.tar.gz`` - *Everything included, just extract and use!*
+        
+        ### 📦 Individual Components
+        
+        **Windows Applications**
+        - Training: ``fruit-recognition-training-win-x64.zip``
+        - Testing: ``fruit-recognition-testing-win-x64.zip``
+        
+        **Linux Applications**
+        - Training: ``fruit-recognition-training-linux-x64.tar.gz``
+        - Testing: ``fruit-recognition-testing-linux-x64.tar.gz``
         
         ## Installation
         
-        1. Download the appropriate package for your platform
-        2. Extract to a directory of your choice
-        3. No additional dependencies required (self-contained)
+        ### Easy Setup (Recommended)
+        1. Download the **Complete Package** for your platform
+        2. Extract to any folder
+        3. Ready to use! All folders and scripts included
         
-        ## Usage
+        ### Manual Setup
+        1. Download individual applications
+        2. Create folder structure manually
+        3. Organize files as needed
+        4. No additional dependencies required (self-contained)
         
-        ### Training
-        1. Place training images in organized folders by fruit type
+        ## Quick Start
+        
+        1. **Setup**: Extract the complete package
+        2. **Add Images**: Place training images in ``data/training/[fruit-name]/``
+        3. **Train**: Run training application to create model
+        4. **Test**: Add test images to ``data/test/`` and run testing application
         2. Run the Training application
         3. A model file will be generated
         
@@ -162,6 +209,8 @@ jobs:
         name: Fruit Recognition ML ${{ steps.version.outputs.VERSION }}
         body_path: RELEASE_NOTES.md
         files: |
+          fruit-recognition-windows-complete.zip
+          fruit-recognition-linux-complete.tar.gz
           fruit-recognition-training-win-x64.zip
           fruit-recognition-testing-win-x64.zip
           fruit-recognition-training-linux-x64.tar.gz  

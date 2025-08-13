@@ -47,6 +47,9 @@ class Program
         }
         finally
         {
+            Console.WriteLine("\n=== Prediction Complete ===");
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
             await host.StopAsync();
         }
     }

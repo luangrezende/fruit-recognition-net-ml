@@ -85,12 +85,12 @@ fruit-recognition-net-ml/
 ├── 📂 src/
 │   ├── 🧠 Fruit.Recognition.MachineLearning.Domain/     # Core ML models
 │   ├── 🏋️ Fruit.Recognition.MachineLearning.Training/   # Training app
-│   └── 🔍 Fruit.Recognition.MachineLearning.Testing/    # Testing app
-├── 📊 data/
-│   ├── training/    # Your training images
-│   └── test/        # Images for testing
-├── 🤖 models/       # Trained ML models
-└── ⚙️ .github/      # CI/CD workflows
+│   ├── 🔍 Fruit.Recognition.MachineLearning.Testing/    # Testing app
+│   ├── 📊 data/
+│   │   ├── training/    # Your training images
+│   │   └── test/        # Images for testing
+│   └── 🤖 models/       # Trained ML models
+└── ⚙️ .github/         # CI/CD workflows
 ```
 
 ## 🎯 Supported Fruits

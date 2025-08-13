@@ -48,5 +48,11 @@ class Program
             logger.LogError(ex, "Training failed: {Message}", ex.Message);
             Environment.ExitCode = 1;
         }
+        finally
+        {
+            Console.WriteLine("\n=== Training Complete ===");
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+        }
     }
 }
