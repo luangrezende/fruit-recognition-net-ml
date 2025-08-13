@@ -21,19 +21,19 @@
 
 </div>
 
-## ✨ Features
+## Features
 
 <table>
 <tr>
 <td width="50%">
 
-### 🚀 Performance
+### Performance
 - **95%+ accuracy** on balanced datasets
 - **GPU acceleration** with CUDA support
 - **Fast inference** - 394+ images/second
 - **12-second training** on RTX 4090
 
-### 🔧 Technical
+### Technical
 - **ML.NET 4.0** with SDCA algorithm
 - **Anti-overfitting** measures
 - **Cross-platform** (Windows/Linux)
@@ -42,13 +42,13 @@
 </td>
 <td width="50%">
 
-### 📁 Flexible Data
+### Flexible Data
 - **8 image formats** supported
 - **Recursive folder** scanning
 - **Any directory structure**
 - **Automatic class** detection
 
-### 🎯 Easy to Use
+### Easy to Use
 - **No dependencies** required
 - **JSON configuration**
 - **Batch processing**
@@ -58,7 +58,7 @@
 </tr>
 </table>
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Option 1: Pre-built Releases
 ```bash
@@ -78,22 +78,22 @@ dotnet restore
 dotnet build --configuration Release
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 fruit-recognition-net-ml/
 ├── 📂 src/
-│   ├── 🧠 Fruit.Recognition.MachineLearning.Domain/     # Core ML models
-│   ├── 🏋️ Fruit.Recognition.MachineLearning.Training/   # Training app
-│   ├── 🔍 Fruit.Recognition.MachineLearning.Testing/    # Testing app
-│   ├── 📊 data/
+│   ├── Fruit.Recognition.MachineLearning.Domain/     # Core ML models
+│   ├── Fruit.Recognition.MachineLearning.Training/   # Training app
+│   ├── Fruit.Recognition.MachineLearning.Testing/    # Testing app
+│   ├── data/
 │   │   ├── training/    # Your training images
 │   │   └── test/        # Images for testing
-│   └── 🤖 models/       # Trained ML models
-└── ⚙️ .github/         # CI/CD workflows
+│   └── models/       # Trained ML models
+└── .github/         # CI/CD workflows
 ```
 
-## 🎯 Supported Fruits
+## Supported Fruits
 
 | Fruit | Status | Notes |
 |-------|--------|--------|
@@ -102,7 +102,7 @@ fruit-recognition-net-ml/
 | 🍊 **Oranges** | ✅ Built-in | Multiple sizes and types |
 | 🍇 **Custom** | ✅ Flexible | Add any fruit by creating folders |
 
-## ⚙️ Configuration
+## Configuration
 
 <details>
 <summary><strong>Training Configuration</strong> (click to expand)</summary>
@@ -141,7 +141,7 @@ fruit-recognition-net-ml/
 
 </details>
 
-## 🏃‍♂️ Usage
+## Usage
 
 ### Training a Model
 ```bash
@@ -150,11 +150,11 @@ dotnet run
 ```
 
 **What happens:**
-1. 📂 Scans training directory recursively
-2. 🔍 Loads and validates all images
-3. 🚀 Trains GPU-optimized model
-4. 💾 Saves model for predictions
-5. 📊 Shows accuracy metrics
+1.  Scans training directory recursively
+2.  Loads and validates all images
+3.  Trains GPU-optimized model
+4.  Saves model for predictions
+5.  Shows accuracy metrics
 
 ### Making Predictions
 ```bash
@@ -163,12 +163,12 @@ dotnet run
 ```
 
 **What happens:**
-1. 🔄 Loads the trained model
-2. 📁 Processes test images
-3. 🤖 Classifies with confidence scores
-4. 📈 Displays batch results
+1.  Loads the trained model
+2.  Processes test images
+3.  Classifies with confidence scores
+4.  Displays batch results
 
-## 📊 Performance
+## Performance
 
 | Metric | Value |
 |--------|-------|
@@ -178,7 +178,7 @@ dotnet run
 | **Dataset Size** | 4,637 images |
 | **Hardware** | RTX 4090, 32GB RAM |
 
-## 💻 System Requirements
+## System Requirements
 
 ### Minimum
 - Windows 10/11 x64 or Linux x64
@@ -191,7 +191,7 @@ dotnet run
 - CUDA 12.x toolkit
 - SSD storage
 
-## 🛠️ Development
+## Development
 
 ```bash
 # Restore dependencies
@@ -207,7 +207,7 @@ dotnet run --project src/Fruit.Recognition.MachineLearning.Training
 dotnet run --project src/Fruit.Recognition.MachineLearning.Testing
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 <details>
 <summary><strong>GPU Issues</strong></summary>
@@ -233,13 +233,13 @@ nvidia-smi
 
 </details>
 
-## 🚦 CI/CD Pipeline
+## CI/CD Pipeline
 
 This project uses **GitHub Actions** for:
-- ✅ Continuous Integration
-- 📦 Cross-platform builds
-- 🚀 Automated releases
-- 📚 Documentation updates
+-  Continuous Integration
+-  Cross-platform builds
+-  Automated releases
+-  Documentation updates
 
 ### Create a Release
 ```bash
@@ -247,11 +247,11 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## Contributing
 
 1. **Fork** the repository
 2. **Create** your feature branch
@@ -259,7 +259,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 4. **Push** to the branch
 5. **Open** a Pull Request
 
-## 📞 Support
+## Support
 
 <div align="center">
 
